@@ -48,7 +48,7 @@ class TotalLoss(torch.nn.Module):
 
         self.l1_loss = L1Loss()
         self.focal_loss = FocalLoss()
-        self.id_loss = ArcFaceLoss()
+        # self.id_loss = ArcFaceLoss()
         
     def forward(self, heat_map, offset, wh, id, heat_map_pred, offset_pred, wh_pred, id_pred):
         batch_size, _, _, _ = heat_map.shape
@@ -57,9 +57,11 @@ class TotalLoss(torch.nn.Module):
         heat_map_loss = self.focal_loss(heat_map_pred, heat_map)
         offset_loss = self.l1_loss(offset_pred, offset, loss_mask)
         wh_loss = self.l1_loss(wh_pred, wh, loss_mask)
-        id_loss = self.id_loss(id_pred, id)
+        id_loss = self.focal_loss(id_pred, id)
+
         heat_map_loss = (torch.sum(heat_map_loss) * self.heat_map_lambda) / batch_size
         offset_loss = (torch.sum(offset_loss) * self.offset_lambda) / batch_size
         wh_loss = (torch.sum(wh_loss) * self.wh_lambda) / batch_size
         id_loss = (torch.sum(id_loss) * self.id_lambda) / batch_size
+
         return heat_map_loss + offset_loss + wh_loss + id_loss, [heat_map_loss, offset_loss, wh_loss, id_loss]
