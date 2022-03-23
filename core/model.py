@@ -1,3 +1,5 @@
+import os
+
 import torch
 from torch import nn
 # from .model_util import Branch
@@ -26,13 +28,15 @@ class Branch(nn.Module):
         return x
 
 class FairMOT(nn.Module):
-    def __init__(self, class_num, id_num, backbone='DLA34', emb_size=256):
+    def __init__(self, class_num, id_num, 
+                backbone_module_path = 'core', 
+                backbone_module_name = 'backbone', 
+                backbone='dla_x_60_c', emb_size=256):
         super(FairMOT, self).__init__()
-        if backbone == 'DLA34':
-            from .backbone import dla_x_102 as build_model
-        # mod = __import__(.backbone.{}'.format('dla_x_102'))
-
         
+        
+        build_model = self._import_backbone(backbone_module_path, 
+                                            backbone_module_name, backbone)
         self.backbone = build_model()
 
         feature_map_ch = self.backbone.output_ch
@@ -41,6 +45,21 @@ class FairMOT(nn.Module):
         self.wh_conv = Branch(feature_map_ch, 2)
         self.emb_conv = Branch(feature_map_ch, emb_size)
         self.id_class_conv = nn.Conv2d(emb_size, id_num, 1, 1, 0)
+
+    def _import_backbone(self, backbone_module_path, backbone_module_name, backbone_name):
+        try:
+            core = __import__('.'.join([backbone_module_path, backbone_module_name]))
+            backbone = getattr(core, backbone_module_name)
+            backbone_list = []
+            for item in dir(backbone):
+                if 'dla' not in item:
+                    continue
+                backbone_list.append(item)
+            build_model = getattr(backbone, backbone_name)
+        except AttributeError as e:
+            txt = 'No Attribute Backbone : "{}"\n select backbone this list\n{}'.format(backbone_name, backbone_list)
+            raise AttributeError(txt)
+        return build_model
 
     def forward(self, img):
         x = self.backbone(img)
