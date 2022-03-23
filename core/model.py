@@ -56,7 +56,7 @@ class FairMOT(nn.Module):
                     continue
                 backbone_list.append(item)
             build_model = getattr(backbone, backbone_name)
-        except AttributeError as e:
+        except AttributeError:
             txt = 'No Attribute Backbone : "{}"\n select backbone this list\n{}'.format(backbone_name, backbone_list)
             raise AttributeError(txt)
         return build_model
