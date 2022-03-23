@@ -40,7 +40,7 @@ class FairMOT(nn.Module):
         self.backbone = build_model()
 
         feature_map_ch = self.backbone.output_ch
-        self.heatmap_conv = Branch(feature_map_ch, class_num)
+        self.heatmap_conv = Branch(feature_map_ch, class_num + 1))
         self.offset_conv = Branch(feature_map_ch, 2)
         self.wh_conv = Branch(feature_map_ch, 2)
         self.emb_conv = Branch(feature_map_ch, emb_size)
