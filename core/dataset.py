@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import imgaug as ia
 import imgaug.augmenters as iaa
-from .dataset_util import set_data, parse_xml, xywh2xyxy, xyxy2xywh
+from .dataset_util import set_data, parse_xml, xml_parse_get_max_id, xywh2xyxy, xyxy2xywh
 
 
 class Random_Augmentation():
@@ -44,14 +44,22 @@ class MOTDatset(torch.utils.data.Dataset):
     def __init__(self, data_path, class_file, input_image_size=512, grid_resolution=128):
         super(MOTDatset, self).__init__()
         self.data_list = glob.glob(os.path.join(data_path, '*/JPEGImages/*'))
-        # np.random.shuffle(self.data_list)
+        self._id_counting()
+        # self.data_list = sorted(self.data_list)
+        np.random.shuffle(self.data_list)
         self.input_image_size = input_image_size
         self.grid_resolution = grid_resolution
         class_list = open(class_file, 'r').readlines()
         self.class_dic = dict([(name.strip(), i) for i, name in enumerate(class_list)])
         self.class_dic_rev = dict([(i, name.strip()) for i, name in enumerate(class_list)])
-
         self.random_augmentation = Random_Augmentation(random=0.2, img_size=input_image_size)
+
+    def _id_counting(self,):
+        self.total_id_nums = 0
+        for sample_img_path in self.data_list:
+            sample_xml_path = sample_img_path.replace('JPEGImages', 'Annotations').replace('.jpg', '.xml')
+            max_id = xml_parse_get_max_id(sample_xml_path)
+            self.total_id_nums = max(max_id, self.total_id_nums)
 
     def random_aug(self, img, data):
         img, data[..., :4] = self.random_augmentation(img, data[..., :4])
@@ -69,17 +77,19 @@ class MOTDatset(torch.utils.data.Dataset):
         img = cv2.resize(img_ori, (self.input_image_size, self.input_image_size))
         data = parse_xml(sample_xml_path, self.class_dic, self.input_image_size, x_size, y_size, box_format='xywh')
         img, data = self.random_aug(img, data)
-        filters, others_info = set_data(data, self.class_dic_rev, self.input_image_size, self.grid_resolution)
+        filters, others_info, id_info = set_data(data, self.class_dic_rev, self.total_id_nums, self.input_image_size, self.grid_resolution)
         img = torch.from_numpy(img.transpose(2, 0, 1) / 255.).float()
         filters = torch.from_numpy(filters).float()
         others_info = torch.from_numpy(others_info).float()
-        return img, filters, others_info[2:, ...], others_info[:2, ...], #id_num
+        return img, filters, others_info, id_info # [width, height, offset_x, offset_y]
+        #  return img, filters, others_info[2:4, ...], others_info[:2, ...], id_info
 
     @staticmethod
     def collate_fn(batch):
         """should make each label have a same number of objs"""
-        images, filters , others_info = zip(*batch)
+        images, filters , others_info, id_info = zip(*batch)
         images = torch.stack(images, dim=0)
         filters = torch.stack(filters, dim=0)
         others_info = torch.stack(others_info, dim=0)
-        return images, filters, others_info
+        id_info = torch.stack(id_info, dim=0)
+        return images, filters, others_info, id_info
