@@ -40,6 +40,7 @@ class Random_Augmentation():
         boxes[..., :4] = xyxy2xywh(boxes[..., :4])
         return images_aug[0], boxes
 
+
 class MOTDatset(torch.utils.data.Dataset):
     def __init__(self, data_path, class_file, input_image_size=512, grid_resolution=128):
         super(MOTDatset, self).__init__()
@@ -54,6 +55,9 @@ class MOTDatset(torch.utils.data.Dataset):
         self.class_dic_rev = dict([(i, name.strip()) for i, name in enumerate(class_list)])
         self.random_augmentation = Random_Augmentation(random=0.2, img_size=input_image_size)
 
+    def __len__(self):
+        return len(self.data_list)
+
     def _id_counting(self,):
         self.total_id_nums = 0
         for sample_img_path in self.data_list:
@@ -64,9 +68,6 @@ class MOTDatset(torch.utils.data.Dataset):
     def random_aug(self, img, data):
         img, data[..., :4] = self.random_augmentation(img, data[..., :4])
         return img, data
-
-    def __len__(self):
-        return len(self.data_list)
 
     def __getitem__(self, idx):
         sample_img_path = self.data_list[idx]
@@ -82,7 +83,7 @@ class MOTDatset(torch.utils.data.Dataset):
         filters = torch.from_numpy(filters).float()
         others_info = torch.from_numpy(others_info).float()
         return img, filters, others_info, id_info # [width, height, offset_x, offset_y]
-        #  return img, filters, others_info[2:4, ...], others_info[:2, ...], id_info
+
 
     @staticmethod
     def collate_fn(batch):
