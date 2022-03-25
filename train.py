@@ -1,3 +1,4 @@
+import os
 import time
 import torch
 import numpy as np
@@ -27,6 +28,10 @@ save_root = './checkpoints'
 log_root = './logs'
 checkpoint_dir = time.strftime('%y%m%d_%H%M')
 
+log_path = os.path.join(log_root, checkpoint_dir)
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
+
 train_dataset = MOTDatset(dataset_path, class_file, input_img_size, output_size)
 train_loader = torch.utils.data.DataLoader(train_dataset, 
                                             batch_size=batch_size,
@@ -52,7 +57,7 @@ scheduler = CosineDecayLR(optimizer,
                             lr_min=lr_end,
                             warmup=warmup * len_train)
 
-
+loss_log_file_name = os.path.join(log_path, 'log.csv')
 for epoch in range(epochs):
     loss_temp = []
     for i, data in enumerate(train_loader):
@@ -79,7 +84,10 @@ for epoch in range(epochs):
             loss_temp = np.array(loss_temp)
             loss_temp = np.mean(loss_temp, 0)
             loss_temp = np.around(loss_temp, 3).astype(str)
-            print('{}, {} '.format(epoch, i) + ', '.join(loss_temp.tolist()), reduced_lr)
+            txt = '{}, {}, '.format(epoch, i) + ', '.join(loss_temp.tolist()) + ', {}'.format(round(reduced_lr, 7))
+            print(txt)
+            with open(loss_log_file_name, 'a') as f:
+                f.write(txt + '\n')
             loss_temp = []
     if epoch % 5 == 0:
         save_model_weights(model, optimizer, epoch, save_root, checkpoint_dir)
