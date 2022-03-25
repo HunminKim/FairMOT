@@ -101,7 +101,7 @@ def set_data(input_points, class_dic_rev, id_nums=1000, input_image_size=512, fe
     filters_temp = np.ones((feature_map_size, feature_map_size, 1))
     
     others_info = np.zeros((feature_map_size, feature_map_size, 4))
-    id_infos = np.zeros((feature_map_size, feature_map_size, id_nums))
+    id_infos = np.zeros((feature_map_size, feature_map_size, id_nums + 1))
     use_point_checker = np.zeros((feature_map_size, feature_map_size)).astype(np.bool)
     scaler = feature_map_size / input_image_size
     for data in input_points:
@@ -119,7 +119,7 @@ def set_data(input_points, class_dic_rev, id_nums=1000, input_image_size=512, fe
         filter = gaussian_filter(filter, width * input_image_size, height * input_image_size, offset_x, offset_y)
         filter[point_s[1], point_s[0]] = 1
 
-        now_info = np.ones_like(others_info) * [width, height, offset_x, offset_y]
+        now_info = np.ones_like(others_info) * [offset_x, offset_y, width, height]#[width, height, offset_x, offset_y]
         now_checker = filter.astype(np.bool)
         others_info = np.where(np.tile(np.expand_dims(filters.max(-1) < filter, -1), (1, 1, 4)), now_info, others_info)
         filters[..., class_idx] = np.where(filters.max(-1) > filter, filters[..., class_idx], filter)

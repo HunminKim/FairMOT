@@ -20,21 +20,29 @@ class FocalLoss(torch.nn.Module):
         self.__alpha = alpha
         self.__loss = torch.nn.BCELoss(reduction=reduction)
 
-    def forward(self, pred, target):
-        loss = self.__loss(input=pred, target=target)
+    def forward(self, y_pred, y_true):
+        loss = self.__loss(y_pred, y_true)
         loss *= self.__alpha * torch.pow(
-            torch.abs(target - pred), self.__gamma)
+            torch.abs(y_pred - y_true), self.__gamma)
+        loss = torch.sum(loss, 1)
         return loss
 
 
 class ArcFaceLoss(nn.Module):
-    def __init__(self, reduction='none'): # epsilon=1e-7, 
+    def __init__(self, gamma=2.0, alpha=0.25, reduction='none'): # epsilon=1e-7, 
         super(ArcFaceLoss, self).__init__()
+        self.__gamma = gamma
+        self.__alpha = alpha
         # self.epsilon = epsilon
-        self.cross_entropy = nn.CrossEntropyLoss(reduction=reduction)
+        # self.__loss = nn.CrossEntropyLoss(reduction=reduction)
+        self.__loss = torch.nn.BCELoss(reduction=reduction)
 
-    def forward(self, y_pred, y_true):
-        loss = self.cross_entropy(y_pred, y_true)
+    def forward(self, y_pred, y_true, mask):
+        loss = self.__loss(y_pred, y_true)
+        loss *= self.__alpha * torch.pow(
+            torch.abs(y_pred - y_true), self.__gamma)
+        loss = torch.sum(loss, 1)
+        loss = loss * mask
         return loss
 
 
@@ -48,20 +56,18 @@ class TotalLoss(torch.nn.Module):
 
         self.l1_loss = L1Loss()
         self.focal_loss = FocalLoss()
-        # self.id_loss = ArcFaceLoss()
+        self.id_loss = ArcFaceLoss()
         
-    def forward(self, heat_map, offset, wh, id, heat_map_pred, offset_pred, wh_pred, id_pred):
+    def forward(self, heat_map, offset, wh, id_info, heat_map_pred, offset_pred, wh_pred, id_pred):
         batch_size, _, _, _ = heat_map.shape
         loss_mask = torch.argmax(heat_map, 1)
         loss_mask = torch.clip(loss_mask, 0, 1)
         heat_map_loss = self.focal_loss(heat_map_pred, heat_map)
         offset_loss = self.l1_loss(offset_pred, offset, loss_mask)
         wh_loss = self.l1_loss(wh_pred, wh, loss_mask)
-        id_loss = self.focal_loss(id_pred, id)
-
+        id_loss = self.id_loss(id_pred, id_info, loss_mask)
         heat_map_loss = (torch.sum(heat_map_loss) * self.heat_map_lambda) / batch_size
         offset_loss = (torch.sum(offset_loss) * self.offset_lambda) / batch_size
         wh_loss = (torch.sum(wh_loss) * self.wh_lambda) / batch_size
         id_loss = (torch.sum(id_loss) * self.id_lambda) / batch_size
-
         return heat_map_loss + offset_loss + wh_loss + id_loss, [heat_map_loss, offset_loss, wh_loss, id_loss]

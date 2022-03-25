@@ -53,6 +53,7 @@ class MOTDatset(torch.utils.data.Dataset):
         class_list = open(class_file, 'r').readlines()
         self.class_dic = dict([(name.strip(), i) for i, name in enumerate(class_list)])
         self.class_dic_rev = dict([(i, name.strip()) for i, name in enumerate(class_list)])
+        self.class_num = len(self.class_dic.keys())
         self.random_augmentation = Random_Augmentation(random=0.2, img_size=input_image_size)
 
     def __len__(self):
@@ -82,7 +83,8 @@ class MOTDatset(torch.utils.data.Dataset):
         img = torch.from_numpy(img.transpose(2, 0, 1) / 255.).float()
         filters = torch.from_numpy(filters).float()
         others_info = torch.from_numpy(others_info).float()
-        return img, filters, others_info, id_info # [width, height, offset_x, offset_y]
+        id_info = torch.from_numpy(id_info).float()
+        return img, filters, others_info, id_info # [offset_x, offset_y, width, height]
 
 
     @staticmethod
