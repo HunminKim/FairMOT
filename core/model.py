@@ -21,10 +21,11 @@ class Branch(nn.Module):
             blocks.append(block)
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, x):
+    def forward(self, x, activation=True):
         for block in self.blocks:
             x = block(x)
-        x = nn.functional.softmax(x, 1)
+        if activation:
+            x = nn.functional.softmax(x, 1)
         return x
 
 
@@ -65,9 +66,9 @@ class FairMOT(nn.Module):
     def forward(self, img):
         x = self.backbone(img)
         heatmap = self.heatmap_conv(x)
-        offset = self.offset_conv(x)
-        wh = self.wh_conv(x)
-        emb = self.emb_conv(x)
+        offset = self.offset_conv(x, activation=False)
+        wh = self.wh_conv(x, activation=False)
+        emb = self.emb_conv(x, activation=False)
         if self.training:
             id_class = self.id_class_conv(emb)
             id_class = nn.functional.softmax(id_class, 1)
