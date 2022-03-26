@@ -69,6 +69,8 @@ class FairMOT(nn.Module):
         offset = self.offset_conv(x, activation=False)
         wh = self.wh_conv(x, activation=False)
         emb = self.emb_conv(x, activation=False)
+        emb = self.linear(emb)
+        emb =  nn.functional.normalize(emb, p=2.0, eps=1e-12)
         if self.training:
             id_class = self.id_class_conv(emb)
             id_class = nn.functional.softmax(id_class, 1)
