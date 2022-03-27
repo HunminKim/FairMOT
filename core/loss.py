@@ -28,30 +28,47 @@ class FocalLoss(torch.nn.Module):
         return loss
 
 
+# class ArcFaceLoss(nn.Module):
+#     def __init__(self, gamma=2.0, alpha=0.25, reduction='none'): # epsilon=1e-7, 
+#         super(ArcFaceLoss, self).__init__()
+#         self.__gamma = gamma
+#         self.__alpha = alpha
+#         # self.epsilon = epsilon
+#         # self.__loss = nn.CrossEntropyLoss(reduction=reduction)
+#         self.__loss = torch.nn.BCELoss(reduction=reduction)
+
+#     def forward(self, y_pred, y_true, mask):
+#         loss = self.__loss(y_pred, y_true)
+#         loss *= self.__alpha * torch.pow(
+#             torch.abs(y_pred - y_true), self.__gamma)
+#         loss = torch.sum(loss, 1)
+#         loss = loss * mask
+#         return loss
+
 class ArcFaceLoss(nn.Module):
-    def __init__(self, gamma=2.0, alpha=0.25, reduction='none'): # epsilon=1e-7, 
+    def __init__(self, epsilon=1e-7):
         super(ArcFaceLoss, self).__init__()
-        self.__gamma = gamma
-        self.__alpha = alpha
-        # self.epsilon = epsilon
-        # self.__loss = nn.CrossEntropyLoss(reduction=reduction)
-        self.__loss = torch.nn.BCELoss(reduction=reduction)
+        self.epsilon = epsilon
+        self.cross_entropy = nn.CrossEntropyLoss(reduction='none')
 
     def forward(self, y_pred, y_true, mask):
-        loss = self.__loss(y_pred, y_true)
-        loss *= self.__alpha * torch.pow(
-            torch.abs(y_pred - y_true), self.__gamma)
-        loss = torch.sum(loss, 1)
+        bs, c, w, h = y_pred.shape
+        mask = torch.reshape(mask, (bs, w * h))
+        # y_true = y_true.permute(0, 2, 3, 1) * mask
+        y_true = torch.reshape(y_true, (bs, c, w * h))
+        # y_pred = y_pred.permute(0, 2, 3, 1) * mask
+        y_pred = torch.reshape(y_pred, (bs, c, w * h))
+        y_true = torch.argmax(y_true, 1)#.type(torch.float32)
+        loss = self.cross_entropy(y_pred, y_true) 
         loss = loss * mask
         return loss
-
 
 class TotalLoss(torch.nn.Module):
     def __init__(self):
         super(TotalLoss, self).__init__()
-        self.heat_map_lambda = 1
-        self.offset_lambda = 1
-        self.wh_lambda = 5
+        self.heat_map_lambda = 0 # 1
+        self.offset_lambda = 0 # 1
+        self.wh_lambda = 0 #5
         self.id_lambda = 1
 
         self.l1_loss = L1Loss()
